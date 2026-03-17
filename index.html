@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Love > Money</title>
+    <style>
+        :root { --primary: #007aff; --secondary: #5856d6; --bg: #f2f2f7; --wish: #ff9500; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; -webkit-tap-highlight-color: transparent; }
+        .header { background: white; padding: 10px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
+        
+        /* 備份按鈕樣式 */
+        .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .sync-btn { font-size: 10px; background: #eee; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; color: #666; cursor: pointer; }
+
+        .search-bar { width: 100%; padding: 6px 10px; border: none; background: #eee; border-radius: 8px; margin-top: 5px; font-size: 13px; box-sizing: border-box; }
+        .status-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 5px 5px 5px; }
+        .status-filter { display: flex; gap: 12px; font-size: 12px; align-items: center; }
+        .filter-item { display: flex; align-items: center; cursor: pointer; font-weight: 500; }
+        .filter-item input { width: 15px; height: 15px; margin-right: 4px; accent-color: var(--primary); }
+        .summary-text { font-size: 14px; font-weight: 900; color: var(--primary); background: #eef7ff; padding: 3px 10px; border-radius: 6px; }
+        .nav-row { display: flex; align-items: center; gap: 5px; padding: 8px 0 5px 0; border-top: 1px solid #f2f2f7; width: 100%; overflow: hidden; }
+        .category-scroll { flex: 1; display: flex; overflow-x: auto; gap: 6px; -webkit-overflow-scrolling: touch; }
+        .category-scroll::-webkit-scrollbar { display: none; }
+        .cat-card { background: #fff; padding: 4px 10px; border-radius: 12px; white-space: nowrap; font-size: 11px; border: 1px solid #eee; flex-shrink: 0; }
+        .cat-active { background: var(--primary); color: white; border-color: var(--primary); }
+        .sort-box { width: 75px; background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 2px 4px; font-size: 10px; outline: none; height: 24px; }
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 4px; }
+        .card { background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative; }
+        .card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; background: #f0f0f0; display: block; }
+        .card-info { padding: 3px; display: flex; flex-direction: column; background: white; line-height: 1.2; }
+        .card-name { font-size: 9px; font-weight: 600; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 1px; }
+        .card-price { font-size: 9px; font-weight: bold; color: var(--primary); }
+        .card-date { font-size: 7px; color: #999; transform: scale(0.8); transform-origin: right; white-space: nowrap; }
+        .status-tag { position: absolute; top: 1px; right: 1px; background: var(--wish); color: white; font-size: 7px; padding: 1px 3px; border-radius: 2px; font-weight: bold; z-index: 1; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: white; width: 90%; max-width: 360px; padding: 20px; border-radius: 15px; max-height: 85vh; overflow-y: auto; box-sizing: border-box; }
+        .suggestion-box { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 8px 0; min-height: 5px; }
+        .suggest-tag { background: #f0f0f0; color: #666; font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: pointer; border: 1px solid #eee; }
+        input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        .btn-box { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+        .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-save { background: #34c759; color: white; }
+        .btn-next { background: var(--secondary); color: white; }
+        .btn-del { background: #ff3b30; color: white; margin-top: 10px; }
+        .fab { position: fixed; bottom: 20px; right: 20px; width: 48px; height: 48px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; border: none; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 99; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="top-row">
+            <h1 style="font-size: 16px; margin: 0;">Love > Money</h1>
+            <div>
+                <button class="sync-btn" onclick="exportData()">備份檔案</button>
+                <button class="sync-btn" onclick="document.getElementById('importFile').click()">還原檔案</button>
+                <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+            </div>
+        </div>
+        
+        <input type="text" class="search-bar" id="searchIn" placeholder="搜尋名稱..." oninput="render()">
+        <div class="status-row">
+            <div class="status-filter">
+                <label class="filter-item"><input type="checkbox" id="checkGot" checked onchange="render()">已獲得 ✅</label>
+                <label class="filter-item"><input type="checkbox" id="checkWish" checked onchange="render()">未獲得 🧡</label>
+            </div>
+            <div class="summary-text" id="sumAmount">總計: $0</div>
+        </div>
+        <div class="nav-row">
+            <div class="category-scroll" id="ipFilterList"></div>
+            <select id="sortSelect" class="sort-box" onchange="render()">
+                <option value="dateDesc">📅 新→舊</option>
+                <option value="dateAsc">📅 舊→新</option>
+                <option value="priceDesc">💰 高→低</option>
+                <option value="priceAsc">💰 低→高</option>
+            </select>
+        </div>
+    </div>
+    <div class="grid" id="itemGrid"></div>
+    <button class="fab" onclick="openAdd()">+</button>
+    <div id="detailModal" class="modal"><div class="modal-content" id="detailContent"></div></div>
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle" style="margin:0 0 10px 0;">新增周邊</h3>
+            <input type="text" id="inName" placeholder="名稱 (必填)">
+            <input type="text" id="inIP" placeholder="作品 (IP)">
+            <div id="suggestIP" class="suggestion-box"></div>
+            <input type="text" id="inCat" placeholder="分類 (立牌/小卡)">
+            <div id="suggestCat" class="suggestion-box"></div>
+            <input type="text" id="inSrc" placeholder="購入來源">
+            <div id="suggestSrc" class="suggestion-box"></div>
+            <input type="number" id="inPrice" placeholder="價格">
+            <input type="date" id="inDate">
+            <select id="inStatus">
+                <option value="true">已獲得</option>
+                <option value="false">未獲得</option>
+            </select>
+            <input type="file" id="inImg" accept="image/*">
+            <div class="btn-box">
+                <button id="nextBtn" class="btn btn-next" onclick="handleSave(true)">儲存並新增下一個</button>
+                <button class="btn btn-save" onclick="handleSave(false)">完成儲存</button>
+                <button class="btn" style="background:#eee" onclick="closeModal('addModal')">取消</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        let items = JSON.parse(localStorage.getItem('loveMoneyData')) || [];
+        let currentFilterIP = '';
+        let editingIndex = -1;
+
+        function render() {
+            const grid = document.getElementById('itemGrid');
+            const searchQ = document.getElementById('searchIn').value.toLowerCase();
+            const showGot = document.getElementById('checkGot').checked;
+            const showWish = document.getElementById('checkWish').checked;
+            const sortBy = document.getElementById('sortSelect').value;
+            const ipCounts = items.reduce((acc, item) => { if(item.ip) acc[item.ip] = (acc[item.ip] || 0) + 1; return acc; }, {});
+            const availableIPs = Object.keys(ipCounts);
+            if (currentFilterIP !== '' && !availableIPs.includes(currentFilterIP)) currentFilterIP = '';
+            const ipListHtml = [`<div class="cat-card ${currentFilterIP === '' ? 'cat-active' : ''}" onclick="setFilterIP('')">全部 (${items.length})</div>`, ...availableIPs.map(ip => `<div class="cat-card ${currentFilterIP === ip ? 'cat-active' : ''}" onclick="setFilterIP('${ip}')">${ip} (${ipCounts[ip]})</div>`)].join('');
+            document.getElementById('ipFilterList').innerHTML = ipListHtml;
+            let filtered = items.filter(i => {
+                const matchSearch = i.name.toLowerCase().includes(searchQ);
+                const matchIP = currentFilterIP === '' || i.ip === currentFilterIP;
+                const matchStatus = (i.status === 'true' && showGot) || (i.status === 'false' && showWish);
+                return matchSearch && matchIP && matchStatus;
+            });
+            filtered.sort((a, b) => {
+                if (sortBy === 'dateDesc') return new Date(b.date || 0) - new Date(a.date || 0);
+                if (sortBy === 'dateAsc') return new Date(a.date || 0) - new Date(b.date || 0);
+                if (sortBy === 'priceDesc') return Number(b.price || 0) - Number(a.price || 0);
+                if (sortBy === 'priceAsc') return Number(a.price || 0) - Number(b.price || 0);
+            });
+            document.getElementById('sumAmount').innerText = `總計: $${filtered.reduce((sum, item) => sum + Number(item.price || 0), 0).toLocaleString()}`;
+            grid.innerHTML = filtered.map((item) => {
+                const realIdx = items.indexOf(item);
+                return `<div class="card" onclick="showDetail(${realIdx})">${item.status === 'false' ? '<div class="status-tag">未獲得</div>' : ''}<img src="${item.img || 'https://via.placeholder.com/80'}"><div class="card-info"><div class="card-name">${item.name}</div><div class="card-meta"><div class="card-price">$${item.price || 0}</div><div class="card-date">${(item.date || '').replace(/-/g, '/')}</div></div></div></div>`
+            }).join('');
+            localStorage.setItem('loveMoneyData', JSON.stringify(items));
+        }
+
+        // 備份功能
+        function exportData() {
+            const dataStr = JSON.stringify(items);
+            const blob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `LoveMoney_Backup_${new Date().toLocaleDateString()}.json`;
+            a.click();
+        }
+
+        // 還原功能
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (confirm("還原將會覆蓋目前的所有資料，確定嗎？")) {
+                        items = imported;
+                        render();
+                        alert("還原成功！");
+                    }
+                } catch (err) { alert("檔案格式錯誤"); }
+            };
+            reader.readAsText(file);
+        }
+
+        function updateSuggestions() {
+            const getUnique = (key) => [...new Set(items.map(i => i[key]).filter(v => v))];
+            document.getElementById('suggestIP').innerHTML = getUnique('ip').map(v => `<span class="suggest-tag" onclick="fill('inIP','${v}')">${v}</span>`).join('');
+            document.getElementById('suggestCat').innerHTML = getUnique('cat').map(v => `<span class="suggest-tag" onclick="fill('inCat','${v}')">${v}</span>`).join('');
+            document.getElementById('suggestSrc').innerHTML = getUnique('src').map(v => `<span class="suggest-tag" onclick="fill('inSrc','${v}')">${v}</span>`).join('');
+        }
+        function fill(id, val) { document.getElementById(id).value = val; }
+        function showDetail(idx) {
+            const item = items[idx]; editingIndex = idx;
+            document.getElementById('detailContent').innerHTML = `<img src="${item.img || 'https://via.placeholder.com/300'}" style="width:100%; border-radius:8px; margin-bottom:10px;"><div style="font-size: 13px; line-height: 1.6; border-top: 1px solid #eee; padding-top: 10px;"><p><b>名稱：</b>${item.name}</p><p><b>作品：</b>${item.ip || '未填'}</p><p><b>分類：</b>${item.cat || '未填'}</p><p><b>來源：</b>${item.src || '未填'}</p><p><b>日期：</b>${item.date || '未填'}</p><p><b>狀態：</b>${item.status === 'true' ? '✅ 已獲得' : '🧡 未獲得'}</p><p><b>金額：</b>$${item.price || 0}</p></div><button class="btn" style="background:var(--primary); color:white; margin-top:15px;" onclick="openEdit(${idx})">編輯內容</button><button class="btn" style="background:#eee" onclick="closeModal('detailModal')">關閉</button><button class="btn btn-del" onclick="deleteItem(${idx})">刪除項目</button>`;
+            document.getElementById('detailModal').style.display = 'flex';
+        }
+
+        async function handleSave(keepOpen) {
+            const name = document.getElementById('inName').value;
+            if(!name) { alert("請輸入名稱"); return; }
+            const file = document.getElementById('inImg').files[0];
+            let imgData = (editingIndex > -1) ? items[editingIndex].img : "";
+            if(file) imgData = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(file); });
+            const data = { name, img: imgData, ip: document.getElementById('inIP').value, cat: document.getElementById('inCat').value, src: document.getElementById('inSrc').value, price: document.getElementById('inPrice').value, date: document.getElementById('inDate').value, status: document.getElementById('inStatus').value };
+            if(editingIndex > -1) items[editingIndex] = data; else items.push(data);
+            render();
+            if (keepOpen) { clearInputs(); updateSuggestions(); document.getElementById('inName').focus(); } 
+            else { closeModal('addModal'); }
+        }
+
+        function openEdit(idx) {
+            const item = items[idx]; editingIndex = idx;
+            document.getElementById('modalTitle').innerText = "編輯周邊"; document.getElementById('nextBtn').style.display = "none";
+            ['inName','inIP','inCat','inSrc','inPrice','inDate','inStatus'].forEach(id => document.getElementById(id).value = item[id.replace('in', '').toLowerCase()] || '');
+            updateSuggestions(); closeModal('detailModal'); document.getElementById('addModal').style.display = 'flex';
+        }
+        function openAdd() {
+            editingIndex = -1; clearInputs(); updateSuggestions();
+            document.getElementById('modalTitle').innerText = "新增周邊"; document.getElementById('nextBtn').style.display = "block";
+            document.getElementById('addModal').style.display = 'flex';
+        }
+        function deleteItem(idx) { if(confirm("確定刪除？")) { items.splice(idx, 1); render(); closeModal('detailModal'); } }
+        function setFilterIP(ip) { currentFilterIP = ip; render(); }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function clearInputs() { 
+            ['inName','inIP','inCat','inSrc','inPrice','inDate','inImg'].forEach(id => document.getElementById(id).value = "");
+            document.getElementById('inStatus').value = "true";
+        }
+        render();
+    </script>
+</body>
+</html>
