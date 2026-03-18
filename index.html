@@ -135,7 +135,7 @@
                 const realIdx = items.indexOf(item);
                 return `<div class="card" onclick="showDetail(${realIdx})">${item.status === 'false' ? '<div class="status-tag">未獲得</div>' : ''}<img src="${item.img || 'https://via.placeholder.com/80'}"><div class="card-info"><div class="card-name">${item.name}</div><div class="card-meta"><div class="card-price">$${item.price || 0}</div><div class="card-date">${(item.date || '').replace(/-/g, '/')}</div></div></div></div>`
             }).join('');
-            try { localStorage.setItem('loveMoneyData', JSON.stringify(items)); } catch(e) { alert("手機空間已滿，請刪除部分項目或備份後清除！"); }
+            try { localStorage.setItem('loveMoneyData', JSON.stringify(items)); } catch(e) { console.warn("Storage limits reached, quiet mode active."); }
         }
 
         async function compressImage(file) {
@@ -146,13 +146,13 @@
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
                         let width = img.width; let height = img.height;
-                        const max = 600; // 限制最大尺寸
+                        const max = 600;
                         if (width > height) { if (width > max) { height *= max / width; width = max; } }
                         else { if (height > max) { width *= max / height; height = max; } }
                         canvas.width = width; canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.7)); // 壓縮品質
+                        resolve(canvas.toDataURL('image/jpeg', 0.7));
                     };
                     img.src = e.target.result;
                 };
@@ -169,21 +169,15 @@
                 isSaving = true;
                 document.getElementById('saveMainBtn').classList.add('btn-loading');
                 document.getElementById('nextBtn').classList.add('btn-loading');
-
                 const file = document.getElementById('inImg').files[0];
                 let imgData = (editingIndex > -1) ? items[editingIndex].img : "";
-                if(file) imgData = await compressImage(file); // 終極修復：壓縮圖片
-                
+                if(file) imgData = await compressImage(file);
                 const data = { name, img: imgData, ip: document.getElementById('inIP').value, cat: document.getElementById('inCat').value, src: document.getElementById('inSrc').value, price: document.getElementById('inPrice').value, date: document.getElementById('inDate').value, status: document.getElementById('inStatus').value };
-                
                 if(editingIndex > -1) items[editingIndex] = data; else items.push(data);
-                
                 render();
                 if (keepOpen) { clearInputs(); updateSuggestions(); document.getElementById('inName').focus(); } 
                 else { closeModal('addModal'); }
-            } catch (e) {
-                alert("儲存失敗：手機空間不足或檔案太大！");
-            } finally {
+            } catch (e) { console.error(e); } finally {
                 isSaving = false;
                 document.getElementById('saveMainBtn').classList.remove('btn-loading');
                 document.getElementById('nextBtn').classList.remove('btn-loading');
@@ -212,8 +206,11 @@
             const file = event.target.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
-                try { const imported = JSON.parse(e.target.result); if(Array.isArray(imported)) { items = imported; render(); alert("還原成功！"); } } 
-                catch(err) { alert("讀取失敗"); }
+                try { 
+                    const imported = JSON.parse(e.target.result); 
+                    if(Array.isArray(imported)) { items = imported; render(); alert("還原成功！"); }
+                    else { alert("格式不符，請使用本程式產生的備份檔"); }
+                } catch(err) { alert("檔案讀取出錯，請確認檔案內容"); }
             };
             reader.readAsText(file); event.target.value = '';
         }
