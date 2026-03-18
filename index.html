@@ -36,7 +36,7 @@
         .suggestion-box { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 8px 0; min-height: 5px; }
         .suggest-tag { background: #f0f0f0; color: #666; font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: pointer; border: 1px solid #eee; }
         input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-        .btn-loading { opacity: 0.5; pointer-events: none; }
+        .btn-loading { opacity: 0.5 !important; pointer-events: none !important; }
         .btn-box { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
         .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; }
         .btn-save { background: #34c759; color: white; }
@@ -135,21 +135,29 @@
                 const realIdx = items.indexOf(item);
                 return `<div class="card" onclick="showDetail(${realIdx})">${item.status === 'false' ? '<div class="status-tag">未獲得</div>' : ''}<img src="${item.img || 'https://via.placeholder.com/80'}"><div class="card-info"><div class="card-name">${item.name}</div><div class="card-meta"><div class="card-price">$${item.price || 0}</div><div class="card-date">${(item.date || '').replace(/-/g, '/')}</div></div></div></div>`
             }).join('');
-            localStorage.setItem('loveMoneyData', JSON.stringify(items));
+            try { localStorage.setItem('loveMoneyData', JSON.stringify(items)); } catch(e) { alert("手機空間已滿，請刪除部分項目或備份後清除！"); }
         }
 
-        function updateSuggestions() {
-            const getUnique = (key) => [...new Set(items.map(i => i[key]).filter(v => v))];
-            document.getElementById('suggestIP').innerHTML = getUnique('ip').map(v => `<span class="suggest-tag" onclick="fill('inIP','${v}')">${v}</span>`).join('');
-            document.getElementById('suggestCat').innerHTML = getUnique('cat').map(v => `<span class="suggest-tag" onclick="fill('inCat','${v}')">${v}</span>`).join('');
-            document.getElementById('suggestSrc').innerHTML = getUnique('src').map(v => `<span class="suggest-tag" onclick="fill('inSrc','${v}')">${v}</span>`).join('');
-        }
-        function fill(id, val) { document.getElementById(id).value = val; }
-        
-        function showDetail(idx) {
-            const item = items[idx]; editingIndex = idx;
-            document.getElementById('detailContent').innerHTML = `<img src="${item.img || 'https://via.placeholder.com/300'}" style="width:100%; border-radius:8px; margin-bottom:10px; background:#e9ecef; object-fit:contain; aspect-ratio:1/1;"><div style="font-size: 13px; line-height: 1.6; border-top: 1px solid #eee; padding-top: 10px;"><p><b>名稱：</b>${item.name}</p><p><b>作品：</b>${item.ip || '未填'}</p><p><b>分類：</b>${item.cat || '未填'}</p><p><b>來源：</b>${item.src || '未填'}</p><p><b>日期：</b>${item.date || '未填'}</p><p><b>狀態：</b>${item.status === 'true' ? '✅ 已獲得' : '🧡 未獲得'}</p><p><b>金額：</b>$${item.price || 0}</p></div><button class="btn" style="background:var(--primary); color:white; margin-top:15px;" onclick="openEdit(${idx})">編輯內容</button><button class="btn" style="background:#eee" onclick="closeModal('detailModal')">關閉</button><button class="btn btn-del" onclick="deleteItem(${idx})">刪除項目</button>`;
-            document.getElementById('detailModal').style.display = 'flex';
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width; let height = img.height;
+                        const max = 600; // 限制最大尺寸
+                        if (width > height) { if (width > max) { height *= max / width; width = max; } }
+                        else { if (height > max) { width *= max / height; height = max; } }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.7)); // 壓縮品質
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
         }
 
         async function handleSave(keepOpen) {
@@ -164,73 +172,62 @@
 
                 const file = document.getElementById('inImg').files[0];
                 let imgData = (editingIndex > -1) ? items[editingIndex].img : "";
-                if(file) imgData = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(file); });
+                if(file) imgData = await compressImage(file); // 終極修復：壓縮圖片
                 
                 const data = { name, img: imgData, ip: document.getElementById('inIP').value, cat: document.getElementById('inCat').value, src: document.getElementById('inSrc').value, price: document.getElementById('inPrice').value, date: document.getElementById('inDate').value, status: document.getElementById('inStatus').value };
                 
                 if(editingIndex > -1) items[editingIndex] = data; else items.push(data);
                 
                 render();
-                if (keepOpen) { 
-                    clearInputs(); 
-                    updateSuggestions(); 
-                    document.getElementById('inName').focus(); 
-                } else { 
-                    closeModal('addModal'); 
-                }
+                if (keepOpen) { clearInputs(); updateSuggestions(); document.getElementById('inName').focus(); } 
+                else { closeModal('addModal'); }
             } catch (e) {
-                alert("儲存失敗，請重試");
+                alert("儲存失敗：手機空間不足或檔案太大！");
             } finally {
-                // 核心修復：不論成功失敗，絕對解鎖按鈕
                 isSaving = false;
                 document.getElementById('saveMainBtn').classList.remove('btn-loading');
                 document.getElementById('nextBtn').classList.remove('btn-loading');
             }
         }
 
+        function updateSuggestions() {
+            const getUnique = (key) => [...new Set(items.map(i => i[key]).filter(v => v))];
+            document.getElementById('suggestIP').innerHTML = getUnique('ip').map(v => `<span class="suggest-tag" onclick="fill('inIP','${v}')">${v}</span>`).join('');
+            document.getElementById('suggestCat').innerHTML = getUnique('cat').map(v => `<span class="suggest-tag" onclick="fill('inCat','${v}')">${v}</span>`).join('');
+            document.getElementById('suggestSrc').innerHTML = getUnique('src').map(v => `<span class="suggest-tag" onclick="fill('inSrc','${v}')">${v}</span>`).join('');
+        }
+        function fill(id, val) { document.getElementById(id).value = val; }
+        function showDetail(idx) {
+            const item = items[idx]; editingIndex = idx;
+            document.getElementById('detailContent').innerHTML = `<img src="${item.img || 'https://via.placeholder.com/300'}" style="width:100%; border-radius:8px; margin-bottom:10px; background:#e9ecef; object-fit:contain; aspect-ratio:1/1;"><div style="font-size: 13px; line-height: 1.6; border-top: 1px solid #eee; padding-top: 10px;"><p><b>名稱：</b>${item.name}</p><p><b>作品：</b>${item.ip || '未填'}</p><p><b>分類：</b>${item.cat || '未填'}</p><p><b>來源：</b>${item.src || '未填'}</p><p><b>日期：</b>${item.date || '未填'}</p><p><b>狀態：</b>${item.status === 'true' ? '✅ 已獲得' : '🧡 未獲得'}</p><p><b>金額：</b>$${item.price || 0}</p></div><button class="btn" style="background:var(--primary); color:white; margin-top:15px;" onclick="openEdit(${idx})">編輯內容</button><button class="btn" style="background:#eee" onclick="closeModal('detailModal')">關閉</button><button class="btn btn-del" onclick="deleteItem(${idx})">刪除項目</button>`;
+            document.getElementById('detailModal').style.display = 'flex';
+        }
         function exportData() {
             const blob = new Blob([JSON.stringify(items, null, 2)], {type: "application/json"});
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `LoveMoney_Backup_${new Date().toLocaleDateString()}.json`;
-            a.click();
+            const a = document.createElement('a'); a.href = url;
+            a.download = `LoveMoney_Backup_${new Date().toLocaleDateString()}.json`; a.click();
         }
-
         function importData(event) {
-            const file = event.target.files[0];
-            if(!file) return;
+            const file = event.target.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
-                try {
-                    const imported = JSON.parse(e.target.result);
-                    if(Array.isArray(imported)) {
-                        if(confirm("還原將覆蓋現有資料，確定嗎？")) { items = imported; render(); alert("還原成功！"); }
-                    } else { alert("檔案格式錯誤"); }
-                } catch(err) { alert("讀取失敗"); }
+                try { const imported = JSON.parse(e.target.result); if(Array.isArray(imported)) { items = imported; render(); alert("還原成功！"); } } 
+                catch(err) { alert("讀取失敗"); }
             };
-            reader.readAsText(file);
-            event.target.value = '';
+            reader.readAsText(file); event.target.value = '';
         }
-
         function openEdit(idx) {
             const item = items[idx]; editingIndex = idx;
             document.getElementById('modalTitle').innerText = "編輯周邊"; document.getElementById('nextBtn').style.display = "none";
             ['inName','inIP','inCat','inSrc','inPrice','inDate','inStatus'].forEach(id => document.getElementById(id).value = item[id.replace('in', '').toLowerCase()] || '');
             updateSuggestions(); closeModal('detailModal'); document.getElementById('addModal').style.display = 'flex';
         }
-        function openAdd() {
-            editingIndex = -1; clearInputs(); updateSuggestions();
-            document.getElementById('modalTitle').innerText = "新增周邊"; document.getElementById('nextBtn').style.display = "block";
-            document.getElementById('addModal').style.display = 'flex';
-        }
+        function openAdd() { editingIndex = -1; clearInputs(); updateSuggestions(); document.getElementById('modalTitle').innerText = "新增周邊"; document.getElementById('nextBtn').style.display = "block"; document.getElementById('addModal').style.display = 'flex'; }
         function deleteItem(idx) { if(confirm("確定刪除？")) { items.splice(idx, 1); render(); closeModal('detailModal'); } }
         function setFilterIP(ip) { currentFilterIP = ip; render(); }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        function clearInputs() { 
-            ['inName','inIP','inCat','inSrc','inPrice','inDate','inImg'].forEach(id => document.getElementById(id).value = "");
-            document.getElementById('inStatus').value = "true";
-        }
+        function clearInputs() { ['inName','inIP','inCat','inSrc','inPrice','inDate','inImg'].forEach(id => document.getElementById(id).value = ""); document.getElementById('inStatus').value = "true"; }
         render();
     </script>
 </body>
