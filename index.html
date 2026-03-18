@@ -157,31 +157,34 @@
             const name = document.getElementById('inName').value;
             if(!name) { alert("請輸入名稱"); return; }
             
-            isSaving = true;
-            document.getElementById('saveMainBtn').classList.add('btn-loading');
-            document.getElementById('nextBtn').classList.add('btn-loading');
+            try {
+                isSaving = true;
+                document.getElementById('saveMainBtn').classList.add('btn-loading');
+                document.getElementById('nextBtn').classList.add('btn-loading');
 
-            const file = document.getElementById('inImg').files[0];
-            let imgData = (editingIndex > -1) ? items[editingIndex].img : "";
-            if(file) imgData = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(file); });
-            
-            const data = { name, img: imgData, ip: document.getElementById('inIP').value, cat: document.getElementById('inCat').value, src: document.getElementById('inSrc').value, price: document.getElementById('inPrice').value, date: document.getElementById('inDate').value, status: document.getElementById('inStatus').value };
-            
-            if(editingIndex > -1) items[editingIndex] = data; else items.push(data);
-            
-            render();
-            
-            // 重要：修正解鎖邏輯
-            isSaving = false;
-            document.getElementById('saveMainBtn').classList.remove('btn-loading');
-            document.getElementById('nextBtn').classList.remove('btn-loading');
-
-            if (keepOpen) { 
-                clearInputs(); 
-                updateSuggestions(); 
-                document.getElementById('inName').focus(); 
-            } else { 
-                closeModal('addModal'); 
+                const file = document.getElementById('inImg').files[0];
+                let imgData = (editingIndex > -1) ? items[editingIndex].img : "";
+                if(file) imgData = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(file); });
+                
+                const data = { name, img: imgData, ip: document.getElementById('inIP').value, cat: document.getElementById('inCat').value, src: document.getElementById('inSrc').value, price: document.getElementById('inPrice').value, date: document.getElementById('inDate').value, status: document.getElementById('inStatus').value };
+                
+                if(editingIndex > -1) items[editingIndex] = data; else items.push(data);
+                
+                render();
+                if (keepOpen) { 
+                    clearInputs(); 
+                    updateSuggestions(); 
+                    document.getElementById('inName').focus(); 
+                } else { 
+                    closeModal('addModal'); 
+                }
+            } catch (e) {
+                alert("儲存失敗，請重試");
+            } finally {
+                // 核心修復：不論成功失敗，絕對解鎖按鈕
+                isSaving = false;
+                document.getElementById('saveMainBtn').classList.remove('btn-loading');
+                document.getElementById('nextBtn').classList.remove('btn-loading');
             }
         }
 
