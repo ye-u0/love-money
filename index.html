@@ -14,24 +14,17 @@
         .filter-item { display: flex; align-items: center; cursor: pointer; font-weight: 500; }
         .filter-item input { width: 15px; height: 15px; margin-right: 4px; accent-color: var(--primary); }
         .summary-text { font-size: 14px; font-weight: 900; color: var(--primary); background: #eef7ff; padding: 3px 10px; border-radius: 6px; }
-        
-        /* 備份按鈕小列 */
         .tools-row { display: flex; gap: 10px; padding: 5px; font-size: 11px; justify-content: flex-end; }
         .tool-btn { color: var(--primary); cursor: pointer; text-decoration: underline; }
-
         .nav-row { display: flex; align-items: center; gap: 5px; padding: 8px 0 5px 0; border-top: 1px solid #f2f2f7; width: 100%; overflow: hidden; }
         .category-scroll { flex: 1; display: flex; overflow-x: auto; gap: 6px; -webkit-overflow-scrolling: touch; }
         .category-scroll::-webkit-scrollbar { display: none; }
         .cat-card { background: #fff; padding: 4px 10px; border-radius: 12px; white-space: nowrap; font-size: 11px; border: 1px solid #eee; flex-shrink: 0; }
         .cat-active { background: var(--primary); color: white; border-color: var(--primary); }
         .sort-box { width: 75px; background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 2px 4px; font-size: 10px; outline: none; height: 24px; }
-        
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 4px; }
         .card { background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative; }
-        
-        /* 修改點：不裁切圖片 + 淺灰色底 */
         .card img { width: 100%; aspect-ratio: 1/1; object-fit: contain; background: #e9ecef; display: block; }
-        
         .card-info { padding: 3px; display: flex; flex-direction: column; background: white; line-height: 1.2; }
         .card-name { font-size: 9px; font-weight: 600; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 1px; }
@@ -43,10 +36,7 @@
         .suggestion-box { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 8px 0; min-height: 5px; }
         .suggest-tag { background: #f0f0f0; color: #666; font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: pointer; border: 1px solid #eee; }
         input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-        
-        /* 修改點：儲存時禁用按鈕的樣式 */
         .btn-loading { opacity: 0.5; pointer-events: none; }
-        
         .btn-box { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
         .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; }
         .btn-save { background: #34c759; color: white; }
@@ -106,7 +96,7 @@
             <div class="btn-box">
                 <button id="nextBtn" class="btn btn-next" onclick="handleSave(true)">儲存並新增下一個</button>
                 <button id="saveMainBtn" class="btn btn-save" onclick="handleSave(false)">完成儲存</button>
-                <button id="cancelBtn" class="btn" style="background:#eee" onclick="closeModal('addModal')">取消</button>
+                <button class="btn" style="background:#eee" onclick="closeModal('addModal')">取消</button>
             </div>
         </div>
     </div>
@@ -115,7 +105,7 @@
         let items = JSON.parse(localStorage.getItem('loveMoneyData')) || [];
         let currentFilterIP = '';
         let editingIndex = -1;
-        let isSaving = false; // 防止重複儲存鎖
+        let isSaving = false;
 
         function render() {
             const grid = document.getElementById('itemGrid');
@@ -143,7 +133,6 @@
             document.getElementById('sumAmount').innerText = `總計: $${filtered.reduce((sum, item) => sum + Number(item.price || 0), 0).toLocaleString()}`;
             grid.innerHTML = filtered.map((item) => {
                 const realIdx = items.indexOf(item);
-                // 修改點：圖片樣式已在 CSS object-fit contain 設定
                 return `<div class="card" onclick="showDetail(${realIdx})">${item.status === 'false' ? '<div class="status-tag">未獲得</div>' : ''}<img src="${item.img || 'https://via.placeholder.com/80'}"><div class="card-info"><div class="card-name">${item.name}</div><div class="card-meta"><div class="card-price">$${item.price || 0}</div><div class="card-date">${(item.date || '').replace(/-/g, '/')}</div></div></div></div>`
             }).join('');
             localStorage.setItem('loveMoneyData', JSON.stringify(items));
@@ -163,7 +152,6 @@
             document.getElementById('detailModal').style.display = 'flex';
         }
 
-        // 修改點：解決問題 1，防止重複儲存
         async function handleSave(keepOpen) {
             if(isSaving) return;
             const name = document.getElementById('inName').value;
@@ -183,22 +171,20 @@
             
             render();
             
+            // 重要：修正解鎖邏輯
+            isSaving = false;
+            document.getElementById('saveMainBtn').classList.remove('btn-loading');
+            document.getElementById('nextBtn').classList.remove('btn-loading');
+
             if (keepOpen) { 
                 clearInputs(); 
                 updateSuggestions(); 
                 document.getElementById('inName').focus(); 
-                isSaving = false; // 解鎖供下一個使用
-                document.getElementById('saveMainBtn').classList.remove('btn-loading');
-                document.getElementById('nextBtn').classList.remove('btn-loading');
             } else { 
                 closeModal('addModal'); 
-                isSaving = false;
-                document.getElementById('saveMainBtn').classList.remove('btn-loading');
-                document.getElementById('nextBtn').classList.remove('btn-loading');
             }
         }
 
-        // 修改點：解決問題 3，備份與還原邏輯
         function exportData() {
             const blob = new Blob([JSON.stringify(items, null, 2)], {type: "application/json"});
             const url = URL.createObjectURL(blob);
@@ -216,16 +202,12 @@
                 try {
                     const imported = JSON.parse(e.target.result);
                     if(Array.isArray(imported)) {
-                        if(confirm("還原將覆蓋現有資料，確定嗎？")) {
-                            items = imported;
-                            render();
-                            alert("還原成功！");
-                        }
+                        if(confirm("還原將覆蓋現有資料，確定嗎？")) { items = imported; render(); alert("還原成功！"); }
                     } else { alert("檔案格式錯誤"); }
                 } catch(err) { alert("讀取失敗"); }
             };
             reader.readAsText(file);
-            event.target.value = ''; // 清除 input 讓下次可選同檔案
+            event.target.value = '';
         }
 
         function openEdit(idx) {
